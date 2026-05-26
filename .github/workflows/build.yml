@@ -9,7 +9,6 @@ jobs:
       - name: Unzip project
         run: |
           unzip -o *.zip
-          # Move everything from any subfolder to root
           for d in */; do
             if [ -f "$d/build.gradle" ]; then
               mv $d/* ./
@@ -20,26 +19,19 @@ jobs:
           done
           ls -la
 
-      - name: Ensure gradlew exists (download if missing)
+      - name: Download official gradle wrapper from Fabric template
         run: |
-          if [ ! -f gradlew ]; then
-            echo "gradlew missing, downloading from Fabric template..."
-            curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
-            unzip -o template.zip
-            cp fabric-example-mod-26.1.2/gradlew .
-            cp fabric-example-mod-26.1.2/gradlew.bat .
-            rm -rf template.zip fabric-example-mod-26.1.2
-          fi
+          curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
+          unzip -o template.zip
+          cp fabric-example-mod-26.1.2/gradlew .
+          cp fabric-example-mod-26.1.2/gradlew.bat .
+          mkdir -p gradle/wrapper
+          cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
+          cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
           chmod +x gradlew
+          rm -rf template.zip fabric-example-mod-26.1.2
 
-      - name: Ensure gradle/wrapper/gradle-wrapper.jar exists
-        run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            mkdir -p gradle/wrapper
-            curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.8.0/gradle/wrapper/gradle-wrapper.jar
-          fi
-
-      - name: Fix gradle.properties (force correct Loom version)
+      - name: Fix gradle.properties
         run: |
           cat > gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=1G
