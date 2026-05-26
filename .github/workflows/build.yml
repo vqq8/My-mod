@@ -6,182 +6,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unzip project
-        run: |
-          unzip -o *.zip
-          for d in */; do
-            if [ -f "$d/build.gradle" ]; then
-              cp -r $d/. ./
-              rm -rf $d
-              break
-            fi
-          done
-
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Download Fabric template and use its build files
+      - name: Download Gradle wrapper from Fabric template
         run: |
           curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
           unzip -o template.zip
+          cp -r fabric-example-mod-26.1.2/gradle .
           cp fabric-example-mod-26.1.2/gradlew .
           cp fabric-example-mod-26.1.2/gradlew.bat .
-          mkdir -p gradle/wrapper
-          cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
-          cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
-          cp fabric-example-mod-26.1.2/settings.gradle .
           cp fabric-example-mod-26.1.2/build.gradle .
+          cp fabric-example-mod-26.1.2/settings.gradle .
           cp fabric-example-mod-26.1.2/gradle.properties .
           chmod +x gradlew
           rm -rf template.zip fabric-example-mod-26.1.2
 
-      - name: Patch gradle.properties
+      - name: Override gradle.properties with your mod info
         run: |
-          sed -i 's/^mod_version=.*/mod_version=1.0.0/' gradle.properties
+          sed -i 's/^mod_version=.*/mod_version=26.1.2/' gradle.properties
           sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
           sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
 
-      - name: Patch build.gradle for Java 21
-        run: |
-          sed -i 's/options\.release = [0-9]*/options.release = 21/' build.gradle
-          sed -i 's/VERSION_[0-9]*/VERSION_21/g' build.gradle
-
-      - name: Write corrected Java source files
-        run: |
-          mkdir -p src/client/java/com/example/renderutilitiz
-
-          cat > src/client/java/com/example/renderutilitiz/RenderUtilitizMod.java << 'EOF'
-          package com.example.renderutilitiz;
-
-          import net.fabricmc.api.ClientModInitializer;
-          import net.fabricmc.api.EnvType;
-          import net.fabricmc.api.Environment;
-          import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-          import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-          import net.minecraft.client.KeyMapping;
-          import com.mojang.blaze3d.platform.InputConstants;
-          import org.lwjgl.glfw.GLFW;
-
-          @Environment(EnvType.CLIENT)
-          public class RenderUtilitizMod implements ClientModInitializer {
-              private static KeyMapping toggleKey;
-              private static boolean isEnabled = true;
-
-              @Override
-              public void onInitializeClient() {
-                  toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                          "key.renderutilitiz.toggle",
-                          InputConstants.Type.KEYSYM,
-                          GLFW.GLFW_KEY_Y,
-                          "category.renderutilitiz"
-                  ));
-
-                  ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                      if (toggleKey.consumeClick()) {
-                          isEnabled = !isEnabled;
-                      }
-                  });
-
-                  RenderUtilitizHandler.register();
-              }
-
-              public static boolean isEnabled() { return isEnabled; }
-          }
-          EOF
-
-          cat > src/client/java/com/example/renderutilitiz/RenderUtilitizHandler.java << 'EOF'
-          package com.example.renderutilitiz;
-
-          import net.fabricmc.api.EnvType;
-          import net.fabricmc.api.Environment;
-          import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-          import net.minecraft.client.Minecraft;
-          import net.minecraft.world.entity.Entity;
-          import net.minecraft.world.entity.LivingEntity;
-          import net.minecraft.world.phys.Vec3;
-
-          @Environment(EnvType.CLIENT)
-          public class RenderUtilitizHandler {
-              private static final double MAX_RANGE = 6.0;
-              private static final double MAX_FOV = 45.0;
-              private static final float AIM_SPEED = 0.35F;
-              private static final long AIM_COOLDOWN_MS = 100;
-              private static long lastAimTime = 0;
-
-              public static void register() {
-                  ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                      if (!RenderUtilitizMod.isEnabled()) return;
-                      if (client.player == null || client.level == null) return;
-                      if (client.options.keyAttack.isDown()) return;
-
-                      long now = System.currentTimeMillis();
-                      if (now - lastAimTime < AIM_COOLDOWN_MS) return;
-                      lastAimTime = now;
-
-                      Entity target = findBestTarget(client);
-                      if (target != null) {
-                          smoothLookAt(client, target);
-                      }
-                  });
-              }
-
-              private static Entity findBestTarget(Minecraft client) {
-                  Entity bestTarget = null;
-                  double bestScore = Double.MAX_VALUE;
-
-                  for (Entity entity : client.level.entitiesForRendering()) {
-                      if (entity == client.player) continue;
-                      if (!(entity instanceof LivingEntity)) continue;
-                      if (entity.isSpectator() || !entity.isAlive()) continue;
-                      if (client.player.distanceTo(entity) > MAX_RANGE) continue;
-
-                      double fov = getAngleToEntity(client, entity);
-                      if (fov > MAX_FOV) continue;
-
-                      double distance = client.player.distanceTo(entity);
-                      double score = distance * 0.7 + fov * 0.3;
-                      if (score < bestScore) {
-                          bestScore = score;
-                          bestTarget = entity;
-                      }
-                  }
-                  return bestTarget;
-              }
-
-              private static double getAngleToEntity(Minecraft client, Entity entity) {
-                  Vec3 cameraVec = client.player.getViewVector(1.0F);
-                  Vec3 toEntity = entity.getBoundingBox().getCenter()
-                          .subtract(client.player.getEyePosition())
-                          .normalize();
-                  return Math.toDegrees(Math.acos(
-                          Math.max(-1.0, Math.min(1.0, cameraVec.dot(toEntity)))
-                  ));
-              }
-
-              private static void smoothLookAt(Minecraft client, Entity target) {
-                  Vec3 targetPos = target.getBoundingBox().getCenter();
-                  Vec3 playerEye = client.player.getEyePosition();
-                  double deltaX = targetPos.x - playerEye.x;
-                  double deltaY = targetPos.y - playerEye.y;
-                  double deltaZ = targetPos.z - playerEye.z;
-                  double horizontalDistance = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-
-                  float targetYaw   = (float) Math.toDegrees(Math.atan2(deltaZ, deltaX)) - 90.0F;
-                  float targetPitch = (float) -Math.toDegrees(Math.atan2(deltaY, horizontalDistance));
-
-                  float newYaw   = client.player.getYRot() + (targetYaw   - client.player.getYRot())   * AIM_SPEED;
-                  float newPitch = client.player.getXRot() + (targetPitch - client.player.getXRot())  * AIM_SPEED;
-
-                  client.player.setYRot(newYaw);
-                  client.player.setXRot(newPitch);
-              }
-          }
-          EOF
-
-          rm -rf src/main/java/com/example/renderutilitiz
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
 
       - name: Build
         run: ./gradlew build --no-daemon
