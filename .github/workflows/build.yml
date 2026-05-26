@@ -6,20 +6,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Unzip and flatten
+      - name: Unzip and move files to root
         run: |
           unzip -o *.zip
-          # Move everything from any subdirectory to root
-          find . -mindepth 2 -type f -exec mv -t . {} \;
-          find . -mindepth 2 -type d -exec rm -rf {} \;
-          # If gradlew still missing, download it from the Fabric template
-          if [ ! -f gradlew ]; then
-            curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
-            unzip -o template.zip
-            cp fabric-example-mod-26.1.2/gradlew .
-            cp fabric-example-mod-26.1.2/gradlew.bat .
-            chmod +x gradlew
-            rm -rf template.zip fabric-example-mod-26.1.2
+          # Move everything from the subfolder (renderutiliz-fixed) up
+          if [ -d renderutiliz-fixed ]; then
+            mv renderutiliz-fixed/* ./
+            mv renderutiliz-fixed/.[!.]* ./ 2>/dev/null || true
+            rm -rf renderutiliz-fixed
           fi
           ls -la
           
