@@ -5,29 +5,62 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Unzip and move files to root
+
+      - name: Unzip project
         run: |
           unzip -o *.zip
-          # Move everything from the subfolder (renderutiliz-fixed) up
-          if [ -d renderutiliz-fixed ]; then
-            mv renderutiliz-fixed/* ./
-            mv renderutiliz-fixed/.[!.]* ./ 2>/dev/null || true
-            rm -rf renderutiliz-fixed
-          fi
+          # Move everything from any subfolder to root
+          for d in */; do
+            if [ -f "$d/build.gradle" ]; then
+              mv $d/* ./
+              mv $d/.[!.]* ./ 2>/dev/null || true
+              rm -rf $d
+              break
+            fi
+          done
           ls -la
-          
+
+      - name: Ensure gradlew exists (download if missing)
+        run: |
+          if [ ! -f gradlew ]; then
+            echo "gradlew missing, downloading from Fabric template..."
+            curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
+            unzip -o template.zip
+            cp fabric-example-mod-26.1.2/gradlew .
+            cp fabric-example-mod-26.1.2/gradlew.bat .
+            rm -rf template.zip fabric-example-mod-26.1.2
+          fi
+          chmod +x gradlew
+
+      - name: Ensure gradle/wrapper/gradle-wrapper.jar exists
+        run: |
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            mkdir -p gradle/wrapper
+            curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.8.0/gradle/wrapper/gradle-wrapper.jar
+          fi
+
+      - name: Fix gradle.properties (force correct Loom version)
+        run: |
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=1G
+          minecraft_version=26.1.2
+          loader_version=0.19.2
+          fabric_version=0.102.0
+          loom_version=1.10.0
+          mod_version=26.1.2
+          maven_group=com.example.renderutilitiz
+          archives_base_name=renderutilitiz
+          EOF
+
       - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '25'
-          
+
       - name: Build
-        run: |
-          chmod +x gradlew
-          ./gradlew build --no-daemon
-          
+        run: ./gradlew build --no-daemon
+
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
