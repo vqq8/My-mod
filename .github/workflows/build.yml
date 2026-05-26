@@ -34,24 +34,22 @@ jobs:
           cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
           cp fabric-example-mod-26.1.2/settings.gradle .
           cp fabric-example-mod-26.1.2/build.gradle .
+          cp fabric-example-mod-26.1.2/gradle.properties .
           chmod +x gradlew
-          echo "=== build.gradle from template ==="
-          cat build.gradle
-          echo "=== settings.gradle from template ==="
-          cat settings.gradle
+          echo "=== gradle.properties from template ==="
+          cat gradle.properties
           rm -rf template.zip fabric-example-mod-26.1.2
 
-      - name: Write gradle.properties
+      - name: Patch gradle.properties with mod values
         run: |
-          cat > gradle.properties << 'EOF'
-          org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=1G
-          minecraft_version=26.1.2
-          loader_version=0.19.2
-          fabric_version=0.102.0+26.1.2
-          mod_version=1.0.0
-          maven_group=com.example.renderutilitiz
-          archives_base_name=renderutilitiz
-          EOF
+          sed -i 's/^minecraft_version=.*/minecraft_version=26.1.2/' gradle.properties
+          sed -i 's/^loader_version=.*/loader_version=0.19.2/' gradle.properties
+          sed -i 's/^fabric_version=.*/fabric_version=0.102.0+26.1.2/' gradle.properties
+          sed -i 's/^mod_version=.*/mod_version=1.0.0/' gradle.properties
+          sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
+          sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
+          echo "=== patched gradle.properties ==="
+          cat gradle.properties
 
       - name: Patch build.gradle for Java 21
         run: |
