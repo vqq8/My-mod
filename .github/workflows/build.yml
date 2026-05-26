@@ -16,7 +16,6 @@ jobs:
               break
             fi
           done
-          ls -la
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -24,7 +23,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Download Gradle wrapper from Fabric template
+      - name: Download Fabric template and use its build files
         run: |
           curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
           unzip -o template.zip
@@ -33,23 +32,14 @@ jobs:
           mkdir -p gradle/wrapper
           cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
           cp fabric-example-mod-26.1.2/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
+          cp fabric-example-mod-26.1.2/settings.gradle .
+          cp fabric-example-mod-26.1.2/build.gradle .
           chmod +x gradlew
+          echo "=== build.gradle from template ==="
+          cat build.gradle
+          echo "=== settings.gradle from template ==="
+          cat settings.gradle
           rm -rf template.zip fabric-example-mod-26.1.2
-
-      - name: Write settings.gradle
-        run: |
-          cat > settings.gradle << 'EOF'
-          pluginManagement {
-              repositories {
-                  maven {
-                      name = 'Fabric'
-                      url = 'https://maven.fabricmc.net/'
-                  }
-                  gradlePluginPortal()
-              }
-          }
-          rootProject.name = 'renderutilitiz'
-          EOF
 
       - name: Write gradle.properties
         run: |
@@ -63,40 +53,10 @@ jobs:
           archives_base_name=renderutilitiz
           EOF
 
-      - name: Write build.gradle
+      - name: Patch build.gradle for Java 21
         run: |
-          cat > build.gradle << 'EOF'
-          plugins {
-              id 'net.fabricmc.fabric-loom' version "1.9.2"
-              id 'maven-publish'
-          }
-          version = project.mod_version
-          group = project.maven_group
-          repositories {}
-          dependencies {
-              minecraft "com.mojang:minecraft:${project.minecraft_version}"
-              mappings loom.officialMojangMappings()
-              modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-              modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-          }
-          processResources {
-              inputs.property "version", project.version
-              filesMatching("fabric.mod.json") {
-                  expand "version": inputs.properties.version
-              }
-          }
-          tasks.withType(JavaCompile).configureEach {
-              it.options.release = 21
-          }
-          java {
-              withSourcesJar()
-              sourceCompatibility = JavaVersion.VERSION_21
-              targetCompatibility = JavaVersion.VERSION_21
-          }
-          jar {
-              from("LICENSE") { rename { "${it}_${project.name}" } }
-          }
-          EOF
+          sed -i 's/options.release = [0-9]*/options.release = 21/' build.gradle
+          sed -i 's/VERSION_[0-9]*/VERSION_21/g' build.gradle
 
       - name: Build
         run: ./gradlew build --no-daemon
