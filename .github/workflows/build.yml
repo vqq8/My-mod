@@ -8,7 +8,7 @@ jobs:
 
       - name: Setup Gradle and source files
         run: |
-          # Download gradle wrapper from Fabric template
+          # Download Fabric template
           curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
           unzip -o template.zip
           cp -r fabric-example-mod-26.1.2/gradle .
@@ -16,27 +16,21 @@ jobs:
           cp fabric-example-mod-26.1.2/gradlew.bat .
           cp fabric-example-mod-26.1.2/settings.gradle .
           cp fabric-example-mod-26.1.2/build.gradle .
+          # Copy the template's gradle.properties (which has the correct loom_version)
+          cp fabric-example-mod-26.1.2/gradle.properties .
           chmod +x gradlew
           rm -rf template.zip fabric-example-mod-26.1.2
 
-          # Write gradle.properties with correct mod name
-          cat > gradle.properties << 'EOF'
-          org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=1G
-          minecraft_version=26.1.2
-          yarn_mappings=26.1.2+build.1
-          loader_version=0.19.2
-          fabric_version=0.102.0
-          loom_version=1.16
-          mod_version=26.1.2
-          maven_group=com.example.renderutilitiz
-          archives_base_name=renderutilitiz
-          EOF
+          # Only change your mod's metadata, keep the template's loom_version
+          sed -i 's/^mod_version=.*/mod_version=26.1.2/' gradle.properties
+          sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
+          sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
 
           # Create directory structure
           mkdir -p src/client/java/com/example/renderutilitiz
           mkdir -p src/client/resources/assets/renderutilitiz/lang
 
-          # Write the main mod class with aim assist
+          # Write the main mod class with aim assist (same as before)
           cat > src/client/java/com/example/renderutilitiz/RenderUtilitizMod.java << 'JAVA'
           package com.example.renderutilitiz;
 
