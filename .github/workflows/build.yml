@@ -36,11 +36,19 @@ jobs:
           cp fabric-example-mod-26.1.2/build.gradle .
           cp fabric-example-mod-26.1.2/gradle.properties .
           chmod +x gradlew
-          echo "=== template gradle.properties ==="
+          echo "=== TEMPLATE gradle.properties ==="
           cat gradle.properties
-          echo "=== template build.gradle ==="
+          echo "=== TEMPLATE build.gradle ==="
           cat build.gradle
           rm -rf template.zip fabric-example-mod-26.1.2
+
+      - name: Patch only mod-specific values in gradle.properties
+        run: |
+          sed -i 's/^mod_version=.*/mod_version=1.0.0/' gradle.properties
+          sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
+          sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
+          echo "=== FINAL gradle.properties ==="
+          cat gradle.properties
 
       - name: Move source to client sourceset
         run: |
@@ -48,27 +56,12 @@ jobs:
           cp src/main/java/com/example/renderutilitiz/*.java src/client/java/com/example/renderutilitiz/
           rm -rf src/main/java/com/example/renderutilitiz
 
-      - name: Patch gradle.properties with mod values
-        run: |
-          sed -i 's/^minecraft_version=.*/minecraft_version=26.1.2/' gradle.properties
-          sed -i 's/^loader_version=.*/loader_version=0.19.2/' gradle.properties
-          sed -i 's/^fabric_version=.*/fabric_version=0.102.0+26.1.2/' gradle.properties
-          sed -i 's/^mod_version=.*/mod_version=1.0.0/' gradle.properties
-          sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
-          sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
-          echo "=== final gradle.properties ==="
-          cat gradle.properties
-
-      - name: Switch to Yarn mappings
-        run: |
-          sed -i 's/mappings loom\.officialMojangMappings()/mappings "net.fabricmc:yarn:${yarn_mappings}:v2"/' build.gradle
-          echo "=== final build.gradle ==="
-          cat build.gradle
-
       - name: Patch build.gradle for Java 21
         run: |
-          sed -i 's/options.release = [0-9]*/options.release = 21/' build.gradle
+          sed -i 's/options\.release = [0-9]*/options.release = 21/' build.gradle
           sed -i 's/VERSION_[0-9]*/VERSION_21/g' build.gradle
+          echo "=== FINAL build.gradle ==="
+          cat build.gradle
 
       - name: Build
         run: ./gradlew build --no-daemon
