@@ -3,7 +3,6 @@ package com.example.renderutilitiz;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +13,6 @@ public class RenderUtilitizMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LOGGER.info(Text.translatable("message.renderutilitiz.ready").getString());
+        LOGGER.info("RenderUtilitiz initialized!");
     }
 }
