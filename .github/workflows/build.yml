@@ -36,6 +36,21 @@ jobs:
           chmod +x gradlew
           rm -rf template.zip fabric-example-mod-26.1.2
 
+      - name: Write settings.gradle
+        run: |
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  maven {
+                      name = 'Fabric'
+                      url = 'https://maven.fabricmc.net/'
+                  }
+                  gradlePluginPortal()
+              }
+          }
+          rootProject.name = 'renderutilitiz'
+          EOF
+
       - name: Write gradle.properties
         run: |
           cat > gradle.properties << 'EOF'
