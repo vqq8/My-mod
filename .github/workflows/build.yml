@@ -5,20 +5,35 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Unzip
+      
+      - name: Unzip and flatten
         run: |
           unzip -o *.zip
-          # Move contents from any subfolder to root
-          if [ -d renderutiliz ]; then mv renderutiliz/* ./; rm -rf renderutiliz; fi
+          # Move everything from any subdirectory to root
+          find . -mindepth 2 -type f -exec mv -t . {} \;
+          find . -mindepth 2 -type d -exec rm -rf {} \;
+          # If gradlew still missing, download it from the Fabric template
+          if [ ! -f gradlew ]; then
+            curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
+            unzip -o template.zip
+            cp fabric-example-mod-26.1.2/gradlew .
+            cp fabric-example-mod-26.1.2/gradlew.bat .
+            chmod +x gradlew
+            rm -rf template.zip fabric-example-mod-26.1.2
+          fi
+          ls -la
+          
       - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '25'
+          
       - name: Build
         run: |
           chmod +x gradlew
           ./gradlew build --no-daemon
+          
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
