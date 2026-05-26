@@ -11,15 +11,20 @@ jobs:
           unzip -o *.zip
           for d in */; do
             if [ -f "$d/build.gradle" ]; then
-              mv $d/* ./
-              mv $d/.[!.]* ./ 2>/dev/null || true
+              cp -r $d/. ./
               rm -rf $d
               break
             fi
           done
           ls -la
 
-      - name: Download official gradle wrapper from Fabric template
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Download Gradle wrapper from Fabric template
         run: |
           curl -L -o template.zip https://github.com/FabricMC/fabric-example-mod/archive/refs/heads/26.1.2.zip
           unzip -o template.zip
@@ -31,24 +36,53 @@ jobs:
           chmod +x gradlew
           rm -rf template.zip fabric-example-mod-26.1.2
 
-      - name: Fix gradle.properties
+      - name: Write gradle.properties
         run: |
           cat > gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=1G
           minecraft_version=26.1.2
           loader_version=0.19.2
-          fabric_version=0.102.0
-          loom_version=1.10.0
-          mod_version=26.1.2
+          fabric_version=0.102.0+26.1.2
+          loom_version=1.9.2
+          mod_version=1.0.0
           maven_group=com.example.renderutilitiz
           archives_base_name=renderutilitiz
           EOF
 
-      - name: Setup Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '25'
+      - name: Write build.gradle
+        run: |
+          cat > build.gradle << 'EOF'
+          plugins {
+              id 'net.fabricmc.fabric-loom' version "${loom_version}"
+              id 'maven-publish'
+          }
+          version = project.mod_version
+          group = project.maven_group
+          repositories {}
+          dependencies {
+              minecraft "com.mojang:minecraft:${project.minecraft_version}"
+              mappings loom.officialMojangMappings()
+              modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+              modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+          }
+          processResources {
+              inputs.property "version", project.version
+              filesMatching("fabric.mod.json") {
+                  expand "version": inputs.properties.version
+              }
+          }
+          tasks.withType(JavaCompile).configureEach {
+              it.options.release = 21
+          }
+          java {
+              withSourcesJar()
+              sourceCompatibility = JavaVersion.VERSION_21
+              targetCompatibility = JavaVersion.VERSION_21
+          }
+          jar {
+              from("LICENSE") { rename { "${it}_${project.name}" } }
+          }
+          EOF
 
       - name: Build
         run: ./gradlew build --no-daemon
