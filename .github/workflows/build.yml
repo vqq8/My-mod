@@ -36,9 +36,13 @@ jobs:
           cp fabric-example-mod-26.1.2/build.gradle .
           cp fabric-example-mod-26.1.2/gradle.properties .
           chmod +x gradlew
-          echo "=== gradle.properties from template ==="
-          cat gradle.properties
           rm -rf template.zip fabric-example-mod-26.1.2
+
+      - name: Move source to client sourceset
+        run: |
+          mkdir -p src/client/java/com/example/renderutilitiz
+          cp src/main/java/com/example/renderutilitiz/*.java src/client/java/com/example/renderutilitiz/
+          rm -rf src/main/java/com/example/renderutilitiz
 
       - name: Patch gradle.properties with mod values
         run: |
@@ -48,8 +52,6 @@ jobs:
           sed -i 's/^mod_version=.*/mod_version=1.0.0/' gradle.properties
           sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
           sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
-          echo "=== patched gradle.properties ==="
-          cat gradle.properties
 
       - name: Patch build.gradle for Java 21
         run: |
