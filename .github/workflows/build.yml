@@ -36,32 +36,57 @@ jobs:
           cp fabric-example-mod-26.1.2/build.gradle .
           cp fabric-example-mod-26.1.2/gradle.properties .
           chmod +x gradlew
-          echo "=== TEMPLATE gradle.properties ==="
-          cat gradle.properties
-          echo "=== TEMPLATE build.gradle ==="
-          cat build.gradle
           rm -rf template.zip fabric-example-mod-26.1.2
 
-      - name: Patch only mod-specific values in gradle.properties
+      - name: Patch gradle.properties
         run: |
           sed -i 's/^mod_version=.*/mod_version=1.0.0/' gradle.properties
           sed -i 's/^maven_group=.*/maven_group=com.example.renderutilitiz/' gradle.properties
           sed -i 's/^archives_base_name=.*/archives_base_name=renderutilitiz/' gradle.properties
-          echo "=== FINAL gradle.properties ==="
-          cat gradle.properties
+
+      - name: Switch to Yarn mappings
+        run: |
+          python3 << 'PYEOF'
+          import re
+
+          with open('gradle.properties') as f:
+              props = f.read()
+
+          print("=== gradle.properties ===")
+          print(props)
+
+          yarn = re.search(r'^yarn_mappings=(.+)$', props, re.M)
+          if yarn:
+              yarn_ver = yarn.group(1).strip()
+              print(f"Found yarn_mappings: {yarn_ver}")
+              with open('build.gradle') as f:
+                  build = f.read()
+              print("=== build.gradle BEFORE ===")
+              print(build)
+              build = re.sub(
+                  r'mappings\s+loom\.officialMojangMappings\(\)',
+                  f'mappings "net.fabricmc:yarn:{yarn_ver}:v2"',
+                  build
+              )
+              print("=== build.gradle AFTER ===")
+              print(build)
+              with open('build.gradle', 'w') as f:
+                  f.write(build)
+          else:
+              print("ERROR: yarn_mappings not found in gradle.properties!")
+              exit(1)
+          PYEOF
+
+      - name: Patch build.gradle for Java 21
+        run: |
+          sed -i 's/options\.release = [0-9]*/options.release = 21/' build.gradle
+          sed -i 's/VERSION_[0-9]*/VERSION_21/g' build.gradle
 
       - name: Move source to client sourceset
         run: |
           mkdir -p src/client/java/com/example/renderutilitiz
           cp src/main/java/com/example/renderutilitiz/*.java src/client/java/com/example/renderutilitiz/
           rm -rf src/main/java/com/example/renderutilitiz
-
-      - name: Patch build.gradle for Java 21
-        run: |
-          sed -i 's/options\.release = [0-9]*/options.release = 21/' build.gradle
-          sed -i 's/VERSION_[0-9]*/VERSION_21/g' build.gradle
-          echo "=== FINAL build.gradle ==="
-          cat build.gradle
 
       - name: Build
         run: ./gradlew build --no-daemon
