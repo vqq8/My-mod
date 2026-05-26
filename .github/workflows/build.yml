@@ -18,11 +18,11 @@ jobs:
           done
           ls -la
 
-      - name: Setup Java 25
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: '21'
 
       - name: Download Gradle wrapper from Fabric template
         run: |
@@ -43,7 +43,6 @@ jobs:
           minecraft_version=26.1.2
           loader_version=0.19.2
           fabric_version=0.102.0+26.1.2
-          loom_version=1.9.2
           mod_version=1.0.0
           maven_group=com.example.renderutilitiz
           archives_base_name=renderutilitiz
@@ -53,7 +52,7 @@ jobs:
         run: |
           cat > build.gradle << 'EOF'
           plugins {
-              id 'net.fabricmc.fabric-loom' version "${loom_version}"
+              id 'net.fabricmc.fabric-loom' version "1.9.2"
               id 'maven-publish'
           }
           version = project.mod_version
