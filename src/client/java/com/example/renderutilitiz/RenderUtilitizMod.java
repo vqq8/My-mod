@@ -6,8 +6,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -25,7 +23,6 @@ import java.nio.file.*;
 public class RenderUtilitizMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("renderutilitiz");
     
-    // Configurable settings
     public static class Config {
         public int toggleKey = GLFW.GLFW_KEY_Y;
         public long aimCooldownMs = 100;
@@ -37,10 +34,10 @@ public class RenderUtilitizMod implements ClientModInitializer {
     
     private static Config config = new Config();
     private static boolean isEnabled;
+    private static long lastToggleTime = 0;
     private static long lastAimTime = 0;
     private static final String CONFIG_PATH = "config/renderutilitiz.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static KeyMapping toggleKeyMapping;
     
     private static void loadConfig() {
         Path path = Paths.get(CONFIG_PATH);
@@ -73,28 +70,21 @@ public class RenderUtilitizMod implements ClientModInitializer {
     public void onInitializeClient() {
         loadConfig();
         
-        // Register key binding using the config's toggle key
-        toggleKeyMapping = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.renderutilitiz.toggle",
-                InputConstants.Type.KEYSYM,
-                config.toggleKey,
-                "category.renderutilitiz"
-        ));
-        
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
+            long now = System.currentTimeMillis();
             
-            // Toggle with the registered key binding
-            while (toggleKeyMapping.consumeClick()) {
+            // Toggle using GLFW key (works, no KeyBindingHelper)
+            long window = client.getWindow().getWindow();
+            if (now - lastToggleTime > 200 && InputConstants.isKeyDown(window, config.toggleKey)) {
                 isEnabled = !isEnabled;
+                lastToggleTime = now;
                 client.player.displayClientMessage(Component.literal("RenderUtilitiz " + (isEnabled ? "§aON" : "§cOFF")), true);
             }
             
             if (!isEnabled) return;
             if (client.level == null) return;
             if (!client.options.keyAttack.isDown()) return;
-            
-            long now = System.currentTimeMillis();
             if (now - lastAimTime < config.aimCooldownMs) return;
             lastAimTime = now;
             
@@ -102,8 +92,7 @@ public class RenderUtilitizMod implements ClientModInitializer {
             if (target != null) smoothLookAt(client, target);
         });
         
-        LOGGER.info("RenderUtilitiz aim assist initialized. Config file: " + CONFIG_PATH);
-        LOGGER.info("Toggle key: " + config.toggleKey + " (change in config)");
+        LOGGER.info("RenderUtilitiz aim assist initialized. Edit " + CONFIG_PATH + " to change settings.");
     }
     
     private static Entity findBestTarget(Minecraft client) {
